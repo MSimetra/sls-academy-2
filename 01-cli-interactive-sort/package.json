@@ -1,0 +1,11 @@
+{
+  "name": "01-cli-interactive-sort",
+  "version": "1.0.0",
+  "description": "Small CLI application that sorts the user's input.",
+  "main": "cli.js",
+  "scripts": {
+    "test": ""
+  },
+  "author": "MSimetra",
+  "license": "ISC"
+}
