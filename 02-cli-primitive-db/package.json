@@ -1,0 +1,14 @@
+{
+  "name": "02-cli-primitive-db",
+  "version": "1.0.0",
+  "description": "",
+  "main": "cli.js",
+  "scripts": {
+    "test": ""
+  },
+  "author": "MSimetra",
+  "license": "",
+  "dependencies": {
+    "inquirer": "^8.2.5"
+  }
+}
