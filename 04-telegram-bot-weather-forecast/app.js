@@ -1,5 +1,6 @@
 'use strict';
 const axios = require('axios');
+const options = require('./options');
 const TelegramBot = require("node-telegram-bot-api");
 
 const chatID = process.env.CHAT_ID;
@@ -7,71 +8,47 @@ const apiKey = process.env.API_KEY;
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(botToken, { polling: true });
 const fullWeather = {};
-const baseText = 'Please, choose an option:';
-const updateText = 'Please, choose an option (update data):';
 
 
 bot.onText(/\/start/, () => {
-  sendMainMenu(chatID, baseText);
+  sendMainMenu(options.baseText, options.mainMenu);
 });
+
+const sendMainMenu = (text, options) => {
+  bot.sendMessage(chatID, text, options);
+}
 
 bot.on('callback_query', (query) => {
   if (query.data === 'kyiv_weather') {
-    sendChoiceMenu(chatID, apiKey, fullWeather);
+    sendChoiceMenu(options.choiceMenu);
   } else if (query.data === 'every_3_hours') {
-    sendFullWeather(chatID, fullWeather, updateText);
+    sendFullWeather(options.updateText, options.mainMenu);
   } else if (query.data === 'every_6_hours') {
-    sendHalfWeather(chatID, fullWeather, updateText);
+    sendHalfWeather(options.updateText, options.mainMenu);
   }
   bot.answerCallbackQuery(query.id);
 });
 
-
-const sendMainMenu = (chatID, text) => {
-  const options = {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: 'Forecast for Kyiv', callback_data: 'kyiv_weather' },
-        ],
-      ],
-    },
-  };
-  bot.sendMessage(chatID, text, options);
-}
-
-const sendChoiceMenu = (chatID, apiKey, fullWeather) => {
-  const options = {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: 'Every 3 hours', callback_data: 'every_3_hours' },
-          { text: 'Every 6 hours', callback_data: 'every_6_hours' },
-        ],
-      ],
-    },
-  };
-
-  getKyivWeather(apiKey, fullWeather);
-
+const sendChoiceMenu = (options) => {
+  getKyivWeather();
   bot.sendMessage(chatID, 'Please, choose interval:', options);
 }
 
-const getKyivWeather = (apiKey, fullWeather) => {
+const getKyivWeather = () => {
   axios
     .get(
       `https://api.openweathermap.org/data/2.5/forecast?q=Kyiv&units=metric&appid=${apiKey}`
     )
     .then((response) => {
-      for (const x in fullWeather) delete fullWeather[x];
+      for (const day in fullWeather) delete fullWeather[day];
 
-      for (const i of response.data.list) {
-        const fullDate = new Date(i.dt * 1000);
+      for (const day of response.data.list) {
+        const fullDate = new Date(day.dt * 1000);
         const date = new Intl.DateTimeFormat("en-GB").format(fullDate);
         const time = fullDate.toLocaleTimeString();
-        const temp = Math.round(i.main.temp);
-        const feelsLike = Math.round(i.main.feels_like);
-        const weather = `${i.weather[0].description}`;
+        const temp = Math.round(day.main.temp);
+        const feelsLike = Math.round(day.main.feels_like);
+        const weather = `${day.weather[0].description}`;
 
         if (!fullWeather[date]) fullWeather[date] = [];
         fullWeather[date].push(`${time}, ${temp}°C, feels like: ${feelsLike}°C, ${weather} `)
@@ -83,33 +60,36 @@ const getKyivWeather = (apiKey, fullWeather) => {
     });
 }
 
-const sendFullWeather = async (chatID, fullWeather, updateText) => {
+const sendFullWeather = async (updateText, options) => {
   let result = '';
 
-  for (const i in fullWeather) {
-    result += '\n' + i + ':\n';
-    for (const j of fullWeather[i]) {
-      result += ' \t ' + j + '\n';
+  for (const day in fullWeather) {
+    result += '\n' + day + ':\n';
+    for (const hour of fullWeather[day]) {
+      result += ' \t ' + hour + '\n';
     }
   }
 
   await bot.sendMessage(chatID, result);
-  sendMainMenu(chatID, updateText);
+  sendMainMenu(updateText, options);
 }
 
-const sendHalfWeather = async (chatID, fullWeather, updateText) => {
+const sendHalfWeather = async (updateText, options) => {
   let result = '';
 
-  for (const i in fullWeather) {
-    result += '\n' + i + ':\n';
-    for (let j = 2; j < fullWeather[i].length; j += 2) {
-      result += ' \t ' + fullWeather[i][j] + '\n';
+  for (const day in fullWeather) {
+    result += '\n' + day + ':\n';
+    const lastIndex = fullWeather[day].length - 1;
+    for (let hour = 2; hour < fullWeather[day].length; hour += 2) {
+      result += ' \t ' + fullWeather[day][hour] + '\n';
     }
-    result += ' \t ' + fullWeather[i][fullWeather[i].length - 1] + '\n';
+    if (fullWeather[day][lastIndex].includes('21:00:00')) {
+      result += ' \t ' + fullWeather[day][lastIndex] + '\n';
+    }
   }
 
   await bot.sendMessage(chatID, result);
-  sendMainMenu(chatID, updateText);
+  sendMainMenu(updateText, options);
 }
 
 // env $(cat .env | xargs) node app.js  
